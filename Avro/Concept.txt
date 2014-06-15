@@ -25,6 +25,11 @@ Aims:
   model should allow schema resolution, defaulting to "known past schemas"
 
 
+- nulls: to be optionally supported
+ - for reference-types, disabled by default, but if enabled, to be implemented via union with void (void as default)
+ - for non-nullable value-types: n/a
+ - for nullable value-types: implemented via union with void (void as default)
+
 
 Questions:
 
