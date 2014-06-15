@@ -1,0 +1,33 @@
+Overview: Flexible Avro serializer for .NET
+
+Aims:
+- should support schema-first, including generating C# types from a schema
+- should support model-first, including generating a schema from C# types
+- should support hybrid - mapping a schema to existing types
+
+
+- map resolution should be flexible:
+ - attribute support
+ - naked type support for "obvious" models (constructor that matches all fields)
+ - runtime (code only) configuration support
+ - to work for both ctor-based and property/field-based assignment
+ - optionally support constructor skipping and factory methods
+ - support C# 6 primary constructors, including schema=>codegen (note: this should also support other layouts)
+
+
+- should generate (whether IL or C#, not important) serializers that are tightly bound to a specific schema and types
+- higher level abstraction should support multiple schemas against a single type model (backwards compatibility),
+  including (where possible) processing previously unseen schemas (i.e. when doing loading a container / exchange, should be able
+  to process new schemas)
+- should allow "known past schemas" to be registered (perhaps via embedded resources?), so that they are not a surprise
+- should allow pre-generation of serialization code / assembly, as a build step
+- should support full container model, or more terse hash-prefix *only* model; in the case of hash-prefix only, a provider
+  model should allow schema resolution, defaulting to "known past schemas"
+
+
+
+Questions:
+
+- is it reasonable to over-read the input? meaning: can we assume that a stream (when not reading sub-objects etc) is
+  terminated (framed) to a single object? If so, we can use a local read-buffer; if not, we can't - as reading a varint
+  has to be done byte-by-byte if we aren't allowed to over-read
