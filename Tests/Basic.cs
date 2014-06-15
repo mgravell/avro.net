@@ -15,7 +15,7 @@ namespace Tests
     public class Basic
     {
         [Test]
-        public void BasicUsage()
+        public void TestObviousWhatToDo()
         {
             var ser = new ObviousWhatToDoSerializer();
             ObviousWhatToDo orig = new ObviousWhatToDo(123, "abc", 456.78F), clone;
@@ -32,7 +32,23 @@ namespace Tests
             Assert.AreEqual(456.78F, clone.Blap);
         }
 
-
+        [Test]
+        public void TestAttributeBased()
+        {
+            var ser = new AttributeBasedSerializer();
+            AttributeBased orig = new AttributeBased(123, "abc", 456.78F), clone;
+            using (var ms = new MemoryStream())
+            {
+                ser.Serialize(ms, orig);
+                ms.Position = 0;
+                clone = ser.Deserialize(ms);
+                Assert.AreEqual(ms.Length, ms.Position);
+            }
+            Assert.AreNotSame(orig, clone);
+            Assert.AreEqual(123, clone.Foo);
+            Assert.AreEqual("abc", clone.Bar);
+            Assert.AreEqual(456.78F, clone.Blap);
+        }
     }
 
     public class ObviousWhatToDo
@@ -106,8 +122,8 @@ namespace Tests
         {
             using (var writer = new AvroWriter(destination))
             {
-                writer.WriteInt32(obj.Foo);
                 writer.WriteString(obj.Bar);
+                writer.WriteInt32(obj.Foo);                
                 writer.WriteSingle(obj.Blap);
             }
         }
