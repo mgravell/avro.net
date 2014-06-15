@@ -7,20 +7,21 @@ namespace Avro
     public abstract class AvroReader : IDisposable
     {
         private readonly Stream source;
-        protected byte[] ioBuffer = new byte[1024];
-
+        protected byte[] ioBuffer = new byte[1024]; // this is just basic now; would be pooled etc
+        private readonly AvroContext context;
 
         public abstract float ReadSingle();
         public abstract double ReadDouble();
-        public static AvroReader Create(Stream source)
+        public static AvroReader Create(Stream source, AvroContext ctx = null)
         {
-            if (BitConverter.IsLittleEndian) return new LittleEndianAvroReader(source);
+            if (BitConverter.IsLittleEndian) return new LittleEndianAvroReader(source, ctx);
             throw new NotImplementedException("big endian atchitecture");
         }
-        internal AvroReader(Stream source)
+        internal AvroReader(Stream source, AvroContext ctx)
         {
             if (source == null) throw new ArgumentNullException();
             this.source = source;
+            this.context = ctx ?? AvroContext.Default;
         }
         public void Dispose() { }
 
@@ -28,9 +29,8 @@ namespace Avro
         {
             int byteCount = ReadInt32();
             Read(byteCount);
-            return encoding.GetString(ioBuffer, 0, byteCount);
+            return AvroContext.Encoding.GetString(ioBuffer, 0, byteCount);
         }
-        static readonly Encoding encoding = Encoding.UTF8;
 
         public bool ReadBoolean()
         {
@@ -45,6 +45,27 @@ namespace Avro
                     if (i < 0) throw new EndOfStreamException();
                     throw new InvalidOperationException(string.Format("Invalid boolean value (expected 0/1, got {0})", i));
             }
+        }
+        
+        public AvroString ReadAvroString()
+        {
+            int byteCount = ReadInt32();
+            
+            var dec = AvroContext.Encoding.GetDecoder();
+            var result = new AvroString();
+            int bufferSize = Math.Min(ioBuffer.Length, AvroContext.MaxBytesPerCharacter * AvroContext.CharsPerPage);
+            while (byteCount > 0)
+            {
+                int toRead = byteCount > bufferSize ? bufferSize : byteCount;
+                Read(toRead);
+                byteCount -= toRead;
+                int charCount = dec.GetCharCount(ioBuffer, 0, toRead, false), charOffset;
+                var charArray = context.GetCharBuffer(charCount, out charOffset);
+                charCount = dec.GetChars(ioBuffer, 0, toRead, charArray, charOffset, byteCount == 0);
+                result.Append(charArray, charOffset, charCount);
+            }
+            if (byteCount != 0) throw new EndOfStreamException();
+            return result;
         }
 
         public int ReadInt32()
@@ -96,7 +117,7 @@ namespace Avro
     }
     internal sealed class LittleEndianAvroReader : AvroReader
     {
-        public LittleEndianAvroReader(Stream source) : base(source) { }
+        public LittleEndianAvroReader(Stream source, AvroContext ctx) : base(source, ctx) { }
         public override unsafe float ReadSingle()
         {
             Read(4);

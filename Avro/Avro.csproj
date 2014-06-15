@@ -42,8 +42,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attributes.cs" />
+    <Compile Include="AvroContext.cs" />
     <Compile Include="AvroReader.cs" />
     <Compile Include="AvroSerializer.cs" />
+    <Compile Include="AvroString.cs" />
     <Compile Include="AvroUtil.cs" />
     <Compile Include="AvroWriter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

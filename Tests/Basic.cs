@@ -69,18 +69,18 @@ namespace Tests
     // what we want to generate, ish...
     public class ObviousWhatToDoSerializer : IAvroSerializer<ObviousWhatToDo>
     {
-        public void Serialize(Stream destination, ObviousWhatToDo obj)
+        public void Serialize(Stream destination, ObviousWhatToDo obj, AvroContext ctx = null)
         {
-            using (var writer = AvroWriter.Create(destination))
+            using (var writer = AvroWriter.Create(destination, ctx))
             {
                 writer.WriteInt32(obj.Foo);
                 writer.WriteString(obj.Bar);
                 writer.WriteSingle(obj.Blap);
             }
         }
-        public ObviousWhatToDo Deserialize(Stream source)
+        public ObviousWhatToDo Deserialize(Stream source, AvroContext ctx = null)
         {
-            using (var reader = AvroReader.Create(source))
+            using (var reader = AvroReader.Create(source, ctx))
             {
                 int foo = reader.ReadInt32();
                 string bar = reader.ReadString();
@@ -118,18 +118,18 @@ namespace Tests
 
     public class AttributeBasedSerializer : IAvroSerializer<AttributeBased>
     {
-        public void Serialize(Stream destination, AttributeBased obj)
+        public void Serialize(Stream destination, AttributeBased obj, AvroContext ctx = null)
         {
-            using (var writer = AvroWriter.Create(destination))
+            using (var writer = AvroWriter.Create(destination, ctx))
             {
                 writer.WriteString(obj.Bar);
                 writer.WriteInt32(obj.Foo);                
                 writer.WriteSingle(obj.Blap);
             }
         }
-        public AttributeBased Deserialize(Stream source)
+        public AttributeBased Deserialize(Stream source, AvroContext ctx = null)
         {
-            using (var reader = AvroReader.Create(source))
+            using (var reader = AvroReader.Create(source, ctx))
             {
                 string bar = reader.ReadString();
                 int foo = reader.ReadInt32();

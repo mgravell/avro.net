@@ -6,20 +6,22 @@ namespace Avro
 {
     public abstract class AvroWriter : IDisposable
     {
-        public static AvroWriter Create(Stream destination)
+        public static AvroWriter Create(Stream destination, AvroContext ctx = null)
         {
-            if (BitConverter.IsLittleEndian) return new LittleEndianAvroWriter(destination);
+            if (BitConverter.IsLittleEndian) return new LittleEndianAvroWriter(destination, ctx);
             throw new NotImplementedException("big endian atchitecture");
         }
+        private readonly AvroContext context;
         public abstract void WriteSingle(float value);
         public abstract void WriteDouble(double value);
-        internal AvroWriter(Stream destination)
+        internal AvroWriter(Stream destination, AvroContext ctx)
         {
             if (destination == null) throw new ArgumentNullException();
             this.dest = destination;
+            this.context = ctx ?? AvroContext.Default;
 
             const int BUFFER_SIZE = 1024;
-            ioBuffer = new byte[BUFFER_SIZE];
+            ioBuffer = new byte[BUFFER_SIZE];  // this is just basic now; would be pooled etc
             ioRemaining = BUFFER_SIZE;
         }
         public void WriteInt64(int value)
@@ -31,9 +33,37 @@ namespace Avro
             throw new NotImplementedException();
         }
 
-        static readonly Encoding encoding = Encoding.UTF8;
+        public void WriteAvroString(AvroString foo)
+        {
+            var segments = foo.Segments;
+
+            int byteCount = 0;
+            // could probably support >2GB strings here, if we want
+
+            // should porobably optimize for small numbers of segments, i.e. 1/2/3/4 segments, and retain their byte-counts in locals
+            // so we don't need to do a delta/take-back
+
+            var encoding = AvroContext.Encoding;
+            foreach (var segment in segments)
+            {
+                byteCount += encoding.GetByteCount(segment.Array, segment.Offset, segment.Count);
+            }
+            WriteUInt32(AvroUtil.ZigZag(byteCount));
+            int perChar = AvroContext.MaxBytesPerCharacter;
+            foreach (var segment in foo.Segments)
+            {
+                int reserved = perChar * segment.Count;
+                int offset = Reserve(reserved);
+                // but we were almost certainly wrong (over-estimate)...
+                int delta = reserved - encoding.GetBytes(segment.Array, segment.Offset, segment.Count, ioBuffer, offset);
+                ioRemaining += delta;
+                ioOffset -= delta;
+            }
+        }
+
         public void WriteString(string value)
         {
+            var encoding = AvroContext.Encoding;
             int byteCount = encoding.GetByteCount(value);
             WriteUInt32(AvroUtil.ZigZag(byteCount));
             int offset = Reserve(byteCount);
@@ -113,7 +143,7 @@ namespace Avro
     }
     internal sealed class LittleEndianAvroWriter : AvroWriter
     {
-        public LittleEndianAvroWriter(Stream destination) : base(destination) { }
+        public LittleEndianAvroWriter(Stream destination, AvroContext ctx) : base(destination, ctx) { }
         public override unsafe void WriteSingle(float value)
         {
             int offset = Reserve(4);

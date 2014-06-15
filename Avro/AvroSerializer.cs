@@ -12,11 +12,11 @@ namespace Avro
             this.baseType = baseType;
         }
 
-        public void Serialize(Stream destination, object obj)
+        public void Serialize(Stream destination, object obj, AvroContext ctx = null)
         {
             throw new NotImplementedException();
         }
-        public object Deserialize(Stream source)
+        public object Deserialize(Stream source, AvroContext ctx = null)
         {
             throw new NotImplementedException();
         }
@@ -25,11 +25,11 @@ namespace Avro
     {
         public AvroSerializer() : base(typeof(T)) { }
 
-        public void Serialize(Stream destination, T obj)
+        public void Serialize(Stream destination, T obj, AvroContext ctx = null)
         {
             base.Serialize(destination, obj);
         }
-        public new T Deserialize(Stream source)
+        public new T Deserialize(Stream source, AvroContext ctx = null)
         {
             return (T)base.Deserialize(source);
         }
@@ -37,7 +37,7 @@ namespace Avro
 
     public interface IAvroSerializer<T>
     {
-        void Serialize(Stream destination, T obj);
-        T Deserialize(Stream source);
+        void Serialize(Stream destination, T obj, AvroContext ctx = null);
+        T Deserialize(Stream source, AvroContext ctx = null);
     }
 }
