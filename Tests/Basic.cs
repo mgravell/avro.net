@@ -71,7 +71,7 @@ namespace Tests
     {
         public void Serialize(Stream destination, ObviousWhatToDo obj)
         {
-            using (var writer = new AvroWriter(destination))
+            using (var writer = AvroWriter.Create(destination))
             {
                 writer.WriteInt32(obj.Foo);
                 writer.WriteString(obj.Bar);
@@ -80,7 +80,7 @@ namespace Tests
         }
         public ObviousWhatToDo Deserialize(Stream source)
         {
-            using (var reader = new AvroReader(source))
+            using (var reader = AvroReader.Create(source))
             {
                 int foo = reader.ReadInt32();
                 string bar = reader.ReadString();
@@ -120,7 +120,7 @@ namespace Tests
     {
         public void Serialize(Stream destination, AttributeBased obj)
         {
-            using (var writer = new AvroWriter(destination))
+            using (var writer = AvroWriter.Create(destination))
             {
                 writer.WriteString(obj.Bar);
                 writer.WriteInt32(obj.Foo);                
@@ -129,7 +129,7 @@ namespace Tests
         }
         public AttributeBased Deserialize(Stream source)
         {
-            using (var reader = new AvroReader(source))
+            using (var reader = AvroReader.Create(source))
             {
                 string bar = reader.ReadString();
                 int foo = reader.ReadInt32();

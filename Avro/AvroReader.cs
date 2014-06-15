@@ -4,11 +4,20 @@ using System.Text;
 
 namespace Avro
 {
-    public sealed class AvroReader : IDisposable
+    public abstract class AvroReader : IDisposable
     {
         private readonly Stream source;
-        private byte[] ioBuffer = new byte[1024];
-        public AvroReader(Stream source)
+        protected byte[] ioBuffer = new byte[1024];
+
+
+        public abstract float ReadSingle();
+        public abstract double ReadDouble();
+        public static AvroReader Create(Stream source)
+        {
+            if (BitConverter.IsLittleEndian) return new LittleEndianAvroReader(source);
+            throw new NotImplementedException("big endian atchitecture");
+        }
+        internal AvroReader(Stream source)
         {
             if (source == null) throw new ArgumentNullException();
             this.source = source;
@@ -26,7 +35,7 @@ namespace Avro
         public bool ReadBoolean()
         {
             int i = source.ReadByte();
-            switch(i)
+            switch (i)
             {
                 case 0:
                     return false;
@@ -73,26 +82,9 @@ namespace Avro
 
             throw new OverflowException();
         }
-
-        public unsafe float ReadSingle()
+        protected void Read(int count)
         {
-            Read(4);
-            fixed(void* ptr = ioBuffer)
-            {
-                return *((float*)ptr);
-            }
-        }
-        public unsafe double ReadDouble()
-        {
-            Read(8);
-            fixed (void* ptr = ioBuffer)
-            {
-                return *((double*)ptr);
-            }
-        }
-        void Read(int count)
-        {
-            if(count > ioBuffer.Length) throw new InvalidOperationException("Proof of concept is assuming all data fits the fixed-size buffer");
+            if (count > ioBuffer.Length) throw new InvalidOperationException("Proof of concept is assuming all data fits the fixed-size buffer");
             int offset = 0, bytesRead;
             while (count > 0 && (bytesRead = source.Read(ioBuffer, offset, count)) > 0)
             {
@@ -100,6 +92,26 @@ namespace Avro
                 count -= bytesRead;
             }
             if (count != 0) throw new EndOfStreamException();
+        }
+    }
+    internal sealed class LittleEndianAvroReader : AvroReader
+    {
+        public LittleEndianAvroReader(Stream source) : base(source) { }
+        public override unsafe float ReadSingle()
+        {
+            Read(4);
+            fixed (void* ptr = ioBuffer)
+            {
+                return *((float*)ptr);
+            }
+        }
+        public override unsafe double ReadDouble()
+        {
+            Read(8);
+            fixed (void* ptr = ioBuffer)
+            {
+                return *((double*)ptr);
+            }
         }
     }
 }
