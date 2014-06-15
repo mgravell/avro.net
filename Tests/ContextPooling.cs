@@ -1,4 +1,7 @@
-﻿using Avro;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using Avro;
 using NUnit.Framework;
 using System.IO;
 
@@ -11,6 +14,50 @@ namespace Tests
     [TestFixture]
     public class ContextPooling
     {
+        private readonly Stopwatch sw;
+
+        public ContextPooling()
+        {
+            sw = Stopwatch.StartNew();
+        }
+
+        public IEnumerable<TestCaseData> GetContexts()
+        {
+            yield return new TestCaseData(AvroContext.Create()).SetName("Pooling");
+            yield return new TestCaseData(AvroContext.Default).SetName("Default");
+        }
+
+        [TestCaseSource("GetContexts")]
+        public void MultipleDeserialize_SpeedTestWithGC(AvroContext ctx)
+        {
+            const int testSize = 100000;
+
+            var obj = new CheapStrings("abcdefghijklmnoprstuwxyz"); 
+            var ser = new CheapStringsSerializer();
+            using (var ms = new MemoryStream())
+            {
+                for (var i = 0; i < testSize; i++)
+                {
+                    ser.Serialize(ms, obj, ctx);
+                }
+
+                ms.Position = 0;
+                sw.Restart();
+                for (var i = 0; i < testSize; i++)
+                {
+                    var clone = ser.Deserialize(ms, ctx);
+                    ctx.Reset();
+                }
+
+                GC.Collect();
+
+                sw.Stop();
+                Console.WriteLine("Test with GC took: {0}", sw.Elapsed);
+            }
+
+            //Assert.AreEqual("1 pages allocated", ctx.ToString());
+        }
+
         [Test]
         public void MultipleDeserialize_FewAllocations()
         {
@@ -18,8 +65,8 @@ namespace Tests
             using (var ctx = AvroContext.Create())
             {
                 var obj = new CheapStrings("abc"); //<=== note that this is just me being lazy to investigate;
-                                                   // the real impl would expose reader/writer APIs to manipulate
-                                                   // the string, presumably
+                // the real impl would expose reader/writer APIs to manipulate
+                // the string, presumably
                 var ser = new CheapStringsSerializer();
                 using (var ms = new MemoryStream())
                 {
