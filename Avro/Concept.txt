@@ -31,6 +31,17 @@ Aims:
  - for nullable value-types: implemented via union with void (void as default)
 
 
+To explore:
+
+- pooling:
+ - some kinds of parent/child scope to allow re-use of resources withing a parent scope, such that each resource is only
+   guaranteed for the duration of the child scope; for example, processing huge quantities of objects in a stream (the
+   parent scope) - the data of each successive child object could be limited to that iteration (item); ideas:
+    - char/blob data could be re-using a shared pool of char/byte-buffers, exposed via something that presents
+	  TextReader/TextWriter (char) or Stream (blob) APIs, presumably wrapping 0-* ArraySegment instances
+    - DTO objects themselves could be pooled and reclaimed/reset/reused to avoid allocations (unless we
+	  are demanding ctor-based assignment)
+
 Questions:
 
 - is it reasonable to over-read the input? meaning: can we assume that a stream (when not reading sub-objects etc) is
