@@ -47,7 +47,6 @@
   <ItemGroup>
     <Compile Include="Attributes.cs" />
     <Compile Include="AvroContext.cs" />
-    <Compile Include="AvroFieldConverter.cs" />
     <Compile Include="AvroFieldTypeSerializer.cs" />
     <Compile Include="AvroReader.cs" />
     <Compile Include="AvroSchema.cs" />

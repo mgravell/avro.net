@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using Avro;
+using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,11 +15,14 @@ namespace Tests
         [Test]
         public void DoParse()
         {
-            foreach(string file in Directory.EnumerateFiles("Schemas"))
+            foreach(string file in Directory.EnumerateFiles("Schemas", "*.json"))
             {
                 Console.WriteLine("Parsing: " + file);
                 var text = File.ReadAllText(file);
-                var model = Avro.AvroSchema.Parse(text);
+                var model = AvroType.Parse(text);
+
+                string schema = model.GetSchema();
+                File.WriteAllText(Path.ChangeExtension(file, "export"), schema);
             }
             
         }
