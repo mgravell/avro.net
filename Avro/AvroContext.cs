@@ -32,7 +32,9 @@ namespace Avro
         }
 
         internal static readonly Encoding Encoding = Encoding.UTF8;
-        internal static readonly int MaxBytesPerCharacter = Encoding.GetMaxByteCount(1);
+
+        // internal static readonly int MaxBytesPerCharacter = Encoding.GetMaxByteCount(1);
+        internal const int MaxBytesPerCharacter = 4; // since rfc3629 (2003), we don't need to worry about the 5/6 byte ranges
         internal const int CharsPerPage = 1024;
     }
 
