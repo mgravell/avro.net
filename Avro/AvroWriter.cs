@@ -35,77 +35,8 @@ namespace Avro
 
         public void WriteAvroString(AvroString foo)
         {
-            var segments = foo.Segments;
-
-            int byteCount = 0;
-            // could probably support >2GB strings here, if we want
-
-            var encoding = AvroContext.Encoding;
-
-            switch(segments.Count)
-            {
-                case 0:
-                    WriteUInt32(AvroUtil.ZigZag(0));
-                    break;
-                case 1:
-                    {
-                        var segment0 = segments[0];
-                        int byteCount0 = encoding.GetByteCount(segment0.Array, segment0.Offset, segment0.Count);
-                        WriteUInt32(AvroUtil.ZigZag(byteCount0));
-                        int offset = Reserve(byteCount0);
-                        encoding.GetBytes(segment0.Array, segment0.Offset, segment0.Count, ioBuffer, offset);
-                    }
-                    break;
-                case 2:
-                    {
-                        var segment0 = segments[0];
-                        var segment1 = segments[1];
-                        int byteCount0 = encoding.GetByteCount(segment0.Array, segment0.Offset, segment0.Count);
-                        int byteCount1 = encoding.GetByteCount(segment1.Array, segment1.Offset, segment1.Count);
-                        WriteUInt32(AvroUtil.ZigZag(byteCount0 + byteCount1));
-                        int offset = Reserve(byteCount0);
-                        encoding.GetBytes(segment0.Array, segment0.Offset, segment0.Count, ioBuffer, offset);
-                        offset = Reserve(byteCount1);
-                        encoding.GetBytes(segment1.Array, segment1.Offset, segment1.Count, ioBuffer, offset);
-                    }
-                    break;
-                case 3:
-                    {
-                        var segment0 = segments[0];
-                        var segment1 = segments[1];
-                        var segment2 = segments[2];
-                        int byteCount0 = encoding.GetByteCount(segment0.Array, segment0.Offset, segment0.Count);
-                        int byteCount1 = encoding.GetByteCount(segment1.Array, segment1.Offset, segment1.Count);
-                        int byteCount2 = encoding.GetByteCount(segment2.Array, segment2.Offset, segment2.Count);
-                        WriteUInt32(AvroUtil.ZigZag(byteCount0 + byteCount1 + byteCount2));
-                        int offset = Reserve(byteCount0);
-                        encoding.GetBytes(segment0.Array, segment0.Offset, segment0.Count, ioBuffer, offset);
-                        offset = Reserve(byteCount1);
-                        encoding.GetBytes(segment1.Array, segment1.Offset, segment1.Count, ioBuffer, offset);
-                        offset = Reserve(byteCount2);
-                        encoding.GetBytes(segment2.Array, segment2.Offset, segment2.Count, ioBuffer, offset);
-                    }
-                    break;
-                default:
-                    {
-                        foreach (var segment in segments)
-                        {
-                            byteCount += encoding.GetByteCount(segment.Array, segment.Offset, segment.Count);
-                        }
-                        WriteUInt32(AvroUtil.ZigZag(byteCount));
-                        int perChar = AvroContext.MaxBytesPerCharacter;
-                        foreach (var segment in foo.Segments)
-                        {
-                            int reserved = perChar * segment.Count;
-                            int offset = Reserve(reserved);
-                            // but we were almost certainly wrong (over-estimate)...
-                            int delta = reserved - encoding.GetBytes(segment.Array, segment.Offset, segment.Count, ioBuffer, offset);
-                            ioRemaining += delta;
-                            ioOffset -= delta;
-                        }
-                    }
-                    break;
-            }
+            WriteInt32(foo.Length);
+            context.WriteAvroString(ioBuffer,foo);
         }
 
         public void WriteString(string value)

@@ -1,40 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Text;
 
 namespace Avro
 {
     public class AvroString
     {
-        public AvroString() { }
-        private AvroString(string value)
+        private readonly string _value;
+        private readonly int _length;
+        private readonly unsafe char* _valuePtr;
+        private readonly int _lenght;
+
+        public AvroString(string value)
         {
-            Append(value);
+            _value = value;
+            _lenght = value.Length;
         }
-        private readonly List<ArraySegment<char>> segments = new List<ArraySegment<char>>();
-        private int length;
-        internal List<ArraySegment<char>> Segments { get { return segments; } }
-        public void Append(string value)
+        
+        public unsafe AvroString(char* value, int length)
         {
-            if (value == null) throw new ArgumentNullException("value");
-            if (value.Length == 0) return;
-            var c = value.ToCharArray();
-            segments.Add(new ArraySegment<char>(c, 0, c.Length));
-            length += c.Length;
-        }
-        public void Append(char[] value)
-        {
-            if (value == null) throw new ArgumentNullException("value");
-            if (value.Length == 0) return;
-            segments.Add(new ArraySegment<char>(value, 0, value.Length));
-            length += value.Length;
-        }
-        public void Append(char[] value, int offset, int count)
-        {
-            if (value == null) throw new ArgumentNullException("value");
-            if (count == 0) return;
-            segments.Add(new ArraySegment<char>(value, offset, count));
-            length += count;
+            _valuePtr = value;
+            _length = length;
         }
 
         public static implicit operator AvroString(string value)
@@ -42,47 +26,45 @@ namespace Avro
             return value == null ? null : new AvroString(value);
         }
 
-        public override string ToString()
+        public void Write(byte[] bufferIo, Encoding encoding)
         {
-            var segments = this.segments;
-            switch (segments.Count)
+            if (_value != null)
             {
-                case 0: return "";
-                case 1:
-                    {
-                        var segment = segments[0];
-                        return new string(segment.Array, segment.Offset, segment.Count);
-                    }
-                default:
-                    {
-                        var sb = new StringBuilder();
-                        foreach (var segment in segments)
-                        {
-                            sb.Append(segment.Array, segment.Offset, segment.Count);
-                        }
-                        return sb.ToString();
-                    }
+                encoding.GetBytes(_value, 0, _value.Length, bufferIo, 0);
             }
+            else
+                unsafe
+                {
+                    fixed (byte* b = bufferIo)
+                    {
+                        encoding.GetBytes(_valuePtr, _lenght, b, 0);
+                    }
+                }
         }
-        public int Length { get { return Length; } }
+
+        public override unsafe string ToString()
+        {
+            if (_value != null)
+            {
+                return _value;
+            }
+
+            if (_valuePtr != default(char*))
+            {
+                return new string(_valuePtr,0,_lenght);
+            }
+
+            return "";
+        }
+        
+        public int Length { get { return _lenght; } }
         
         public static bool operator ==(string x, AvroString y)
         {
             if ((object)x == null) return (object)y == null;
-            if ((object)y == null || x.Length != y.length) return false;
+            if ((object)y == null || x.Length != y.Length) return false;
 
-            // not optimized!
-            int charIndex = 0;
-            foreach (var segment in y.segments)
-            {
-                char[] arr = segment.Array;
-                int max = segment.Offset + segment.Count;
-                for (int i = segment.Offset; i < max; i++)
-                {
-                    if (x[charIndex++] != arr[i]) return false;
-                }
-            }
-            return true;
+            return x == y.ToString();
         }
         public static bool operator !=(string x, AvroString y)
         {
@@ -90,21 +72,10 @@ namespace Avro
         }
         public static bool operator ==(AvroString x, string y)
         {
-            if ((object)y == null) return (object)x == null;
-            if ((object)x == null || y.Length != x.length) return false;
+            if ((object)x == null) return (object)y == null;
+            if ((object)y == null || x.Length != y.Length) return false;
 
-            // not optimized!
-            int charIndex = 0;
-            foreach (var segment in x.segments)
-            {
-                char[] arr = segment.Array;
-                int max = segment.Offset + segment.Count;
-                for (int i = segment.Offset; i < max; i++)
-                {
-                    if (y[charIndex++] != arr[i]) return false;
-                }
-            }
-            return true;
+            return y == x.ToString();
         }
         public static bool operator !=(AvroString x, string y)
         {

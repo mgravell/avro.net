@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Text;
 
 namespace Avro
 {
@@ -49,23 +48,10 @@ namespace Avro
         
         public AvroString ReadAvroString()
         {
-            int byteCount = ReadInt32();
-            
-            var dec = AvroContext.Encoding.GetDecoder();
-            var result = new AvroString();
-            int bufferSize = Math.Min(ioBuffer.Length, AvroContext.MaxBytesPerCharacter * AvroContext.CharsPerPage);
-            while (byteCount > 0)
-            {
-                int toRead = byteCount > bufferSize ? bufferSize : byteCount;
-                Read(toRead);
-                byteCount -= toRead;
-                int charCount = dec.GetCharCount(ioBuffer, 0, toRead, false), charOffset;
-                var charArray = context.GetCharBuffer(charCount, out charOffset);
-                charCount = dec.GetChars(ioBuffer, 0, toRead, charArray, charOffset, byteCount == 0);
-                result.Append(charArray, charOffset, charCount);
-            }
-            if (byteCount != 0) throw new EndOfStreamException();
-            return result;
+            var byteCount = ReadInt32();
+            Read(byteCount);
+
+            return context.GetAvroString( ioBuffer, byteCount);
         }
 
         public int ReadInt32()

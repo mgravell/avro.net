@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Avro
@@ -17,74 +17,60 @@ namespace Avro
 
         public virtual void Dispose() { }
 
-        private static readonly char[] Empty = new char[0];
         public virtual void Reset() { }
-        internal virtual char[] GetCharBuffer(int charCount, out int charOffset)
-        {
-            if (charCount == 0)
-            {
-                charOffset = 0;
-                return Empty;
-            }
-            if (charCount > CharsPerPage) throw new ArgumentOutOfRangeException("charCount");
-            charOffset = 0;
-            return new char[charCount];
-        }
 
         internal static readonly Encoding Encoding = Encoding.UTF8;
 
         // internal static readonly int MaxBytesPerCharacter = Encoding.GetMaxByteCount(1);
         internal const int MaxBytesPerCharacter = 4; // since rfc3629 (2003), we don't need to worry about the 5/6 byte ranges
-        internal const int CharsPerPage = 1024;
+
+        internal virtual AvroString GetAvroString(byte[] ioBuffer, int byteCount)
+        {
+            return new AvroString(Encoding.GetString(ioBuffer, 0, byteCount));
+        }
+
+        internal void WriteAvroString(byte[] ioBuffer, AvroString str)
+        {
+            str.Write(ioBuffer, Encoding);
+        }
     }
 
     class PoolingAvroContext : AvroContext
-    { // object re-use; not present unless a custom context is used
+    {
+        private const int AllocSize = 1024 * 1024;
+        private const int BytesPerChar = 2;
+        
+        private readonly IntPtr ptr;
+        private readonly IntPtr upTo;
+        private IntPtr current;
 
-        private readonly List<char[]> pages = new List<char[]>();
-        private int page = -1, charsLeftOnPage = 0, charIndex = 0;
+        internal PoolingAvroContext()
+        {
+            ptr = Marshal.AllocHGlobal(AllocSize);
+            upTo = ptr + AllocSize;
+            current = ptr;
+        }
+
+        public override void Dispose()
+        {
+            Marshal.FreeHGlobal(ptr);
+        }
+
         public override void Reset()
         {
-            lock(pages)
-            {
-                if (pages.Count != 0)
-                {
-                    page = 0;
-                    charsLeftOnPage = CharsPerPage;
-                    charIndex = 0;
-                }
-            }
-        }
-        
-        internal override char[] GetCharBuffer(int charCount, out int charOffset)
-        {
-            if (charCount == 0) return base.GetCharBuffer(charCount, out charOffset);
-            lock(pages)
-            {
-                if(charCount <= charsLeftOnPage)
-                {
-                    charOffset = charIndex;
-                    charIndex += charCount;
-                    charsLeftOnPage -= charCount;
-                    return pages[page];
-                }
-                if (++page == pages.Count)
-                {
-                    // need a new buffer
-                    pages.Add(base.GetCharBuffer(CharsPerPage, out charOffset));
-                }
-                charOffset = 0;
-                charIndex = charCount;
-                charsLeftOnPage = CharsPerPage - charCount;
-                return pages[page];
-            }
+            current = ptr;
         }
 
-        public override string ToString()
+        internal override unsafe AvroString GetAvroString(byte[] ioBuffer, int byteCount)
         {
-            lock(pages)
+            var charsLeft = (int)((upTo.ToInt64() - current.ToInt64()) / BytesPerChar);
+
+            fixed (byte* b = ioBuffer)
             {
-                return string.Format("{0} pages allocated", pages.Count);
+                var start = (char*)current;
+                var charsRead = Encoding.GetChars(b, byteCount, start, charsLeft);
+                current += (charsRead * BytesPerChar);
+                return new AvroString(start, charsRead);
             }
         }
     }
