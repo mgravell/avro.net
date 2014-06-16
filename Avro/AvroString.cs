@@ -2,84 +2,121 @@
 
 namespace Avro
 {
-    public class AvroString
+    public struct AvroString
     {
-        private readonly string _value;
-        private readonly int _length;
-        private readonly unsafe char* _valuePtr;
-        private readonly int _lenght;
+        public readonly unsafe char* ValuePtr;
+        public readonly int Length;
 
-        public AvroString(string value)
-        {
-            _value = value;
-            _lenght = value.Length;
-        }
-        
         public unsafe AvroString(char* value, int length)
         {
-            _valuePtr = value;
-            _length = length;
-        }
-
-        public static implicit operator AvroString(string value)
-        {
-            return value == null ? null : new AvroString(value);
+            ValuePtr = value;
+            Length = length;
         }
 
         public void Write(byte[] bufferIo, Encoding encoding)
         {
-            if (_value != null)
+            unsafe
             {
-                encoding.GetBytes(_value, 0, _value.Length, bufferIo, 0);
-            }
-            else
-                unsafe
+                fixed (byte* b = bufferIo)
                 {
-                    fixed (byte* b = bufferIo)
-                    {
-                        encoding.GetBytes(_valuePtr, _lenght, b, 0);
-                    }
+                    encoding.GetBytes(ValuePtr, Length, b, bufferIo.Length);
                 }
+            }
         }
 
         public override unsafe string ToString()
         {
-            if (_value != null)
+            if (ValuePtr != default(char*))
             {
-                return _value;
-            }
-
-            if (_valuePtr != default(char*))
-            {
-                return new string(_valuePtr,0,_lenght);
+                return new string(ValuePtr, 0, Length);
             }
 
             return "";
         }
-        
-        public int Length { get { return _lenght; } }
-        
-        public static bool operator ==(string x, AvroString y)
-        {
-            if ((object)x == null) return (object)y == null;
-            if ((object)y == null || x.Length != y.Length) return false;
 
-            return x == y.ToString();
-        }
-        public static bool operator !=(string x, AvroString y)
+        public unsafe bool Equals(AvroString other)
         {
-            return !(x == y);
-        }
-        public static bool operator ==(AvroString x, string y)
-        {
-            if ((object)x == null) return (object)y == null;
-            if ((object)y == null || x.Length != y.Length) return false;
+            var otherLength = other.Length;
+            var otherPtr = other.ValuePtr;
 
-            return y == x.ToString();
+            return Equals(otherLength, otherPtr);
         }
-        public static bool operator !=(AvroString x, string y)
+
+        public unsafe bool Equals(int otherLength, char* otherPtr)
         {
-            return !(x == y);
+            if (Length != otherLength)
+                return false;
+
+            var length = Length;
+
+            var ch1 = ValuePtr;
+            var ch2 = otherPtr;
+            const int delta = 8;
+
+            while (length >= delta)
+            {
+                if (*(long*) ch1 != *(long*) ch2)
+                    return false;
+
+                ch1 += delta;
+                ch2 += delta;
+                length -= delta;
+            }
+
+            while (length > 1 && *(int*) ch1 == *(int*) ch2)
+            {
+                ch1 += 2;
+                ch2 += 2;
+                length -= 2;
+            }
+
+            if (length == 1 && *ch1 == *ch2)
+                return true;
+
+            return length <= 0;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            return obj is AvroString && Equals((AvroString)obj);
+        }
+
+        public static bool operator ==(AvroString left, AvroString right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(AvroString left, AvroString right)
+        {
+            return !left.Equals(right);
+        } 
+        
+        public static unsafe bool operator ==(AvroString left, string right)
+        {
+            fixed (char* c = right)
+            {
+                return left.Equals(right.Length, c);    
+            }
+        }
+
+        public static unsafe bool operator !=(AvroString left, string right)
+        {
+            fixed (char* c = right)
+            {
+                return left.Equals(right.Length, c) == false;
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            unsafe
+            {
+                unchecked
+                {
+                    return ((int)ValuePtr * 397) ^ Length;
+                }
+            }
         }
     }
 }

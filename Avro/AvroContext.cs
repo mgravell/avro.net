@@ -23,15 +23,12 @@ namespace Avro
 
         // internal static readonly int MaxBytesPerCharacter = Encoding.GetMaxByteCount(1);
         internal const int MaxBytesPerCharacter = 4; // since rfc3629 (2003), we don't need to worry about the 5/6 byte ranges
+        
+        private const string NotImplementedByDesignMsg = "By design. To use optimized types create context by AvroContext.Create()";
 
         internal virtual AvroString GetAvroString(byte[] ioBuffer, int byteCount)
         {
-            return new AvroString(Encoding.GetString(ioBuffer, 0, byteCount));
-        }
-
-        internal void WriteAvroString(byte[] ioBuffer, AvroString str)
-        {
-            str.Write(ioBuffer, Encoding);
+            throw new NotImplementedException(NotImplementedByDesignMsg);
         }
     }
 

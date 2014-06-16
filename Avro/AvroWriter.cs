@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Text;
 
 namespace Avro
 {
@@ -33,18 +32,26 @@ namespace Avro
             throw new NotImplementedException();
         }
 
-        public void WriteAvroString(AvroString foo)
+        public unsafe void WriteAvroString(AvroString value)
         {
-            WriteInt32(foo.Length);
-            context.WriteAvroString(ioBuffer,foo);
+            var encoding = AvroContext.Encoding;
+            var byteCount = encoding.GetByteCount(value.ValuePtr, value.Length);
+           
+            WriteUInt32(AvroUtil.ZigZag(byteCount));
+            var offset = Reserve(byteCount);
+
+            fixed (byte* buffer = ioBuffer)
+            {
+                encoding.GetBytes(value.ValuePtr, value.Length, buffer + offset, ioBuffer.Length - offset);
+            }
         }
 
         public void WriteString(string value)
         {
             var encoding = AvroContext.Encoding;
-            int byteCount = encoding.GetByteCount(value);
+            var byteCount = encoding.GetByteCount(value);
             WriteUInt32(AvroUtil.ZigZag(byteCount));
-            int offset = Reserve(byteCount);
+            var offset = Reserve(byteCount);
             encoding.GetBytes(value, 0, value.Length, ioBuffer, offset);
         }
         private readonly Stream dest;

@@ -51,7 +51,7 @@ namespace Avro
             var byteCount = ReadInt32();
             Read(byteCount);
 
-            return context.GetAvroString( ioBuffer, byteCount);
+            return context.GetAvroString(ioBuffer, byteCount);
         }
 
         public int ReadInt32()
